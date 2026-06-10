@@ -442,7 +442,7 @@ const NotesScreen = () => {
   // Handle note press
   const handleNotePress = (noteId) => {
     router.push({
-      pathname: '/note-detail',
+      pathname: '/screens/NotesDetail',
       params: { id: noteId }
     });
   };
