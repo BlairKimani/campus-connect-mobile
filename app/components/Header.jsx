@@ -1,4 +1,4 @@
-// Header.jsx - With Search Feature
+// Header.jsx - With Authentication Integration
 import React, { useState } from 'react';
 import {
   View,
@@ -8,8 +8,13 @@ import {
   StyleSheet,
   Platform,
   Image,
+  Modal,
+  Pressable,
 } from 'react-native';
-// Removed incorrect Link import - Link from expo-router should not be used inside Text
+import { useAuth } from '../services/Context';
+import {data} from '../../config';
+
+const BASE_URL = data.BASE_URL;
 
 /**
  * AppHeader Component - Campus Connect
@@ -18,11 +23,7 @@ import {
  * Automatically switches between Login button and User Avatar based on auth state.
  * Includes a search bar that expands on focus.
  * 
- * @param {Object} user - Current authenticated user (null if not logged in)
- * @param {string} user.name - User's full name (for initials)
- * @param {string} user.avatarUrl - Optional profile image URL
  * @param {Function} onLoginPress - Callback when login button is pressed
- * @param {Function} onAvatarPress - Callback when avatar is pressed
  * @param {Function} onLogoPress - Callback when logo is pressed
  * @param {Function} onSearch - Callback when search is submitted
  * @param {Function} onSearchFocus - Callback when search bar is focused
@@ -34,9 +35,7 @@ import {
  */
 
 const AppHeader = ({
-  user = null,
   onLoginPress,
-  onAvatarPress,
   onLogoPress,
   onSearch,
   onSearchFocus,
@@ -49,28 +48,22 @@ const AppHeader = ({
   const [pressed, setPressed] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const isAuthenticated = !!user;
-
-  // Get user initials from name
-  const getUserInitials = () => {
-    if (!user?.name) return 'U';
-    const nameParts = user.name.trim().split(' ');
-    if (nameParts.length === 1) return nameParts[0].charAt(0).toUpperCase();
-    return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
-  };
+  const [dropdownVisible, setDropdownVisible] = useState(false);
+  
+  // Get authentication state from Auth Context
+  const { isUserAuthenticated, getUser, getUserAvatar, getUserInitials, getDisplayName, logout } = useAuth();
+  
+  const isAuthenticated = isUserAuthenticated();
+  const user = getUser();
+  const avatarUrl = getUserAvatar();
+  const userInitials = getUserInitials();
+  const displayName = getDisplayName();
 
   /**
    * handleLogoPress - Handles logo/title press
    * SHOULD DO: Navigate to Home Screen or reset to main feed
-   * SHOULD NOT DO: Perform any side effects like API calls, state mutations, or navigation directly
-   * PARENT SHOULD: Provide onLogoPress prop with navigation logic
    */
   const handleLogoPress = () => {
-    // ✅ This only calls the callback provided by parent
-    // ✅ Parent component should handle navigation (e.g., navigation.navigate('Home'))
-    // ❌ Does NOT navigate directly
-    // ❌ Does NOT make API calls
-    // ❌ Does NOT modify state
     if (onLogoPress) {
       onLogoPress();
     }
@@ -79,15 +72,8 @@ const AppHeader = ({
   /**
    * handleLoginPress - Handles login button press
    * SHOULD DO: Navigate to Login Screen or open login modal
-   * SHOULD NOT DO: Perform authentication directly or store tokens
-   * PARENT SHOULD: Provide onLoginPress prop with auth navigation logic
    */
   const handleLoginPress = () => {
-    // ✅ This only calls the callback provided by parent
-    // ✅ Parent component should handle navigation to login screen
-    // ❌ Does NOT authenticate user directly
-    // ❌ Does NOT store tokens or credentials
-    // ❌ Does NOT validate user input
     if (onLoginPress) {
       onLoginPress();
     }
@@ -95,31 +81,44 @@ const AppHeader = ({
 
   /**
    * handleAvatarPress - Handles user avatar/profile press
-   * SHOULD DO: Navigate to User Profile Screen
-   * SHOULD NOT DO: Fetch user data directly or modify user state
-   * PARENT SHOULD: Provide onAvatarPress prop with profile navigation logic
+   * SHOULD DO: Show dropdown menu with profile and logout options
    */
   const handleAvatarPress = () => {
-    // ✅ This only calls the callback provided by parent
-    // ✅ Parent component should handle navigation to profile screen
-    // ❌ Does NOT fetch user data
-    // ❌ Does NOT open settings directly
-    if (onAvatarPress) {
-      onAvatarPress();
+    setDropdownVisible(true);
+  };
+
+  /**
+   * handleCloseDropdown - Closes the dropdown menu
+   */
+  const handleCloseDropdown = () => {
+    setDropdownVisible(false);
+  };
+
+  /**
+   * handleProfilePress - Handles profile menu item press
+   */
+  const handleProfilePress = () => {
+    setDropdownVisible(false);
+    // TODO: Navigate to profile screen when implemented
+    console.log('Navigate to Profile Screen');
+  };
+
+  /**
+   * handleLogoutPress - Handles logout menu item press
+   */
+  const handleLogoutPress = async () => {
+    setDropdownVisible(false);
+    const result = await logout();
+    if (result.success) {
+      console.log('Logged out successfully');
+      // Optionally navigate to login screen or refresh
     }
   };
 
   /**
    * handleSearchSubmit - Handles search form submission
-   * SHOULD DO: Execute search with the query string
-   * SHOULD NOT DO: Filter results directly or manipulate search data
-   * PARENT SHOULD: Provide onSearch prop with search execution logic
    */
   const handleSearchSubmit = () => {
-    // ✅ Triggers search callback with current query
-    // ✅ Only executes if there's actual search text
-    // ❌ Does NOT filter or process results
-    // ❌ Does NOT navigate directly
     if (searchQuery.trim()) {
       if (onSearch) {
         onSearch(searchQuery);
@@ -129,15 +128,8 @@ const AppHeader = ({
 
   /**
    * handleSearchFocus - Handles search bar focus event
-   * SHOULD DO: Trigger UI changes like expanding search bar, showing suggestions
-   * SHOULD NOT DO: Fetch search suggestions directly or modify app state
-   * PARENT SHOULD: Provide onSearchFocus prop to handle focus behavior
    */
   const handleSearchFocus = () => {
-    // ✅ Updates local focused state for UI styling
-    // ✅ Calls parent callback if provided for additional behavior
-    // ❌ Does NOT fetch search suggestions
-    // ❌ Does NOT clear or modify search results
     setSearchFocused(true);
     if (onSearchFocus) {
       onSearchFocus();
@@ -146,29 +138,15 @@ const AppHeader = ({
 
   /**
    * handleSearchBlur - Handles search bar blur/unfocus event
-   * SHOULD DO: Update UI styling when search loses focus
-   * SHOULD NOT DO: Clear search results automatically or submit search
-   * NO PARENT CALLBACK NEEDED: Internal UI state management only
    */
   const handleSearchBlur = () => {
-    // ✅ Only updates local focused state for UI styling
-    // ❌ Does NOT clear search results
-    // ❌ Does NOT reset search query
-    // ❌ Does NOT trigger any navigation
     setSearchFocused(false);
   };
 
   /**
    * handleClearSearch - Clears the search input field
-   * SHOULD DO: Reset search query state locally
-   * SHOULD NOT DO: Clear global search results or trigger new search
-   * NO PARENT CALLBACK NEEDED: Internal state management only
    */
   const handleClearSearch = () => {
-    // ✅ Only clears the local search input state
-    // ❌ Does NOT clear search results in parent component
-    // ❌ Does NOT refetch or reset data
-    // ❌ Does NOT trigger search submission
     setSearchQuery('');
   };
 
@@ -182,7 +160,6 @@ const AppHeader = ({
       accessibilityRole="button"
     >
       <View style={styles.logoIcon}>
-        {/* ✅ Removed Link wrapper - Text should not contain Link */}
         <Text style={styles.logoIconText}>CC</Text>
       </View>
       {!searchFocused && (
@@ -245,31 +222,83 @@ const AppHeader = ({
     );
   };
 
-  // Render user avatar
+  // Render user avatar with dropdown menu
   const renderAvatar = () => {
     if (!showAvatar) return null;
 
     return (
-      <TouchableOpacity
-        style={styles.avatarContainer}
-        onPress={handleAvatarPress}
-        activeOpacity={0.7}
-        accessibilityLabel="Profile"
-        accessibilityRole="button"
-      >
-        {user?.avatarUrl ? (
-          <Image 
-            source={{ uri: user.avatarUrl }} 
-            style={styles.avatarImage}
-          />
-        ) : (
-          <View style={styles.avatarInitials}>
-            <Text style={styles.avatarInitialsText}>
-              {getUserInitials()}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
+      <>
+        <TouchableOpacity
+          style={styles.avatarContainer}
+          onPress={handleAvatarPress}
+          activeOpacity={0.7}
+          accessibilityLabel="Profile"
+          accessibilityRole="button"
+        >
+          {avatarUrl ? (
+            <Image 
+              source={{ uri: avatarUrl }} 
+              style={styles.avatarImage}
+            />
+          ) : (
+            <View style={styles.avatarInitials}>
+              <Text style={styles.avatarInitialsText}>
+                {userInitials}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        {/* Dropdown Menu Modal */}
+        <Modal
+          visible={dropdownVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={handleCloseDropdown}
+        >
+          <Pressable style={styles.modalOverlay} onPress={handleCloseDropdown}>
+            <View style={styles.dropdownContainer}>
+              <View style={styles.dropdownArrow} />
+              <View style={styles.dropdownMenu}>
+                {/* User Info Section */}
+                <View style={styles.dropdownUserInfo}>
+                  {avatarUrl ? (
+                    <Image source={{ uri: avatarUrl }} style={styles.dropdownAvatar} />
+                  ) : (
+                    <View style={styles.dropdownAvatarInitials}>
+                      <Text style={styles.dropdownAvatarText}>{userInitials}</Text>
+                    </View>
+                  )}
+                  <View style={styles.dropdownUserText}>
+                    <Text style={styles.dropdownUserName}>{displayName}</Text>
+                    <Text style={styles.dropdownUserEmail}>{user?.email || ''}</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.dropdownDivider} />
+                
+                {/* Profile Option */}
+                <TouchableOpacity 
+                  style={styles.dropdownItem}
+                  onPress={handleProfilePress}
+                >
+                  <Text style={styles.dropdownItemIcon}>👤</Text>
+                  <Text style={styles.dropdownItemText}>Profile</Text>
+                </TouchableOpacity>
+                
+                {/* Logout Option */}
+                <TouchableOpacity 
+                  style={[styles.dropdownItem, styles.dropdownItemLogout]}
+                  onPress={handleLogoutPress}
+                >
+                  <Text style={styles.dropdownItemIcon}>🚪</Text>
+                  <Text style={[styles.dropdownItemText, styles.dropdownItemTextLogout]}>Logout</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Pressable>
+        </Modal>
+      </>
     );
   };
 
@@ -306,10 +335,10 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flexDirection: 'row',
-    alignItems: 'center', // Changed from 'flex-end' to 'center' for proper alignment
-    justifyContent: 'space-between', // Changed from 'flex-end' for proper layout
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 18,
-    paddingTop: Platform.OS === 'ios' ? 50 : 30, // Added proper status bar spacing
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
     paddingBottom: 12,
     gap: 12,
     ...Platform.select({
@@ -317,7 +346,7 @@ const styles = StyleSheet.create({
         maxWidth: 1200,
         marginHorizontal: 'auto',
         width: '100%',
-        paddingTop: 12, // Less padding on web
+        paddingTop: 12,
       },
     }),
   },
@@ -468,6 +497,113 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Dropdown Menu Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  dropdownContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 110 : 90,
+    right: 16,
+    alignItems: 'flex-end',
+  },
+  dropdownArrow: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderBottomWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#FFFFFF',
+    marginRight: 12,
+  },
+  dropdownMenu: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    minWidth: 260,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0D1B2A',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        boxShadow: '0 4px 20px rgba(13,27,42,0.15)',
+      },
+    }),
+  },
+  dropdownUserInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  dropdownAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#1E90FF',
+  },
+  dropdownAvatarInitials: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#0D1B2A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#1E90FF',
+  },
+  dropdownAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  dropdownUserText: {
+    flex: 1,
+  },
+  dropdownUserName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0D1B2A',
+    marginBottom: 2,
+  },
+  dropdownUserEmail: {
+    fontSize: 12,
+    color: '#6C7A89',
+  },
+  dropdownDivider: {
+    height: 1,
+    backgroundColor: '#DCE3EA',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    gap: 12,
+  },
+  dropdownItemLogout: {
+    borderTopWidth: 1,
+    borderTopColor: '#DCE3EA',
+  },
+  dropdownItemIcon: {
+    fontSize: 18,
+    width: 24,
+  },
+  dropdownItemText: {
+    fontSize: 15,
+    color: '#1B263B',
+  },
+  dropdownItemTextLogout: {
+    color: '#E74C3C',
   },
 });
 

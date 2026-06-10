@@ -3,6 +3,7 @@ import React from 'react'
 import { Slot, useRouter } from 'expo-router'
 import Header from "./components/Header"
 import BottomNavBar from "./components/BottomNavBar"
+import { AuthProvider } from './services/Context';
 
 
 const RootLayout = () => {
@@ -20,7 +21,7 @@ const RootLayout = () => {
   const handleLoginPress = () => {
     // ✅ This is where login navigation should happen
 
-    router.push('/screens/Qa')
+    router.push('/screens/Login')
   };
 
   const handleSearch = (query) => {
@@ -29,19 +30,21 @@ const RootLayout = () => {
     // fetch search results, update state, etc.
   };
   return (
-    <View style={styles.container}>
-      <Header
-      onLogoPress={handleLogoPress}
-      onLoginPress={handleLoginPress}
-      onSearch={handleSearch}
-      />
+    <AuthProvider>
+      <View style={styles.container}>
+        <Header
+        onLogoPress={handleLogoPress}
+        onLoginPress={handleLoginPress}
+        onSearch={handleSearch}
+        />
 
-      <Slot />
+        <Slot />
 
-      <BottomNavBar/>
-      
+        <BottomNavBar/>
+        
 
-    </View>
+      </View>
+    </AuthProvider>
   )
 }
 
