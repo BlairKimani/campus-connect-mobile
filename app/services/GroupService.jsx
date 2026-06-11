@@ -1,8 +1,8 @@
 // services/GroupService.jsx
 import axios from 'axios';
-import config from './config';
+import {data} from '../../config';
 
-const BASE_URL = config.BASE_URL;
+const BASE_URL = data.BASE_URL;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Functions to Fetch Groups
@@ -14,24 +14,18 @@ const BASE_URL = config.BASE_URL;
  * @param {number} params.page - Page number (default: 1)
  * @param {number} params.pageSize - Number of items per page (default: 6)
  * @param {string} params.search - Search query (optional)
- * @param {string} params.course - Filter by course ID (optional)
  * @returns {Promise<Object>} - Returns formatted group data
  */
 export const fetchGroups = async ({ 
   page = 1, 
   pageSize = 6, 
-  search = null, 
-  course = null 
+  search = null 
 } = {}) => {
   try {
-    let url = `${BASE_URL}/api/groups/?page=${page}&page_size=${pageSize}`;
+    let url = `${BASE_URL}/Groups/api/?page=${page}&page_size=${pageSize}`;
     
     if (search) {
       url += `&search=${encodeURIComponent(search)}`;
-    }
-    
-    if (course) {
-      url += `&course=${course}`;
     }
     
     console.log('Fetching groups from:', url);
@@ -399,14 +393,12 @@ const formatGroupsData = (rawData) => {
   const results = rawData.results || [];
   
   const formattedResults = results.map(group => ({
-    id: group.group_id || group.id,
-    group_id: group.group_id || group.id,
+    id: group.id,
+    group_id: group.id,
     name: group.name || 'Untitled Group',
     description: group.description || '',
     group_image: group.group_image || null,
     members_count: group.members_count || 0,
-    created_at: group.created_at,
-    is_member: group.is_member || false,
   }));
   
   return {
@@ -426,17 +418,13 @@ const formatGroupDetailData = (rawData) => {
   if (!rawData) return null;
   
   return {
-    id: rawData.group_id || rawData.id,
-    group_id: rawData.group_id || rawData.id,
+    id: rawData.id,
+    group_id: rawData.id,
     name: rawData.name || 'Untitled Group',
     description: rawData.description || '',
     group_image: rawData.group_image || null,
     members_count: rawData.members_count || 0,
-    is_member: rawData.is_member || false,
     created_at: rawData.created_at,
-    created_by: rawData.created_by || null,
-    courses: rawData.courses || [],
-    members: rawData.members || [],
   };
 };
 

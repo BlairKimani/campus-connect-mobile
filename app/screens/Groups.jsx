@@ -23,7 +23,6 @@ import {
 } from '../services/GroupService';
 
 const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 48) / 2; // 2 columns with 16px gap on each side
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Skeleton Components
@@ -47,7 +46,7 @@ const GroupCardSkeleton = () => (
 // Group Card Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GroupCard = ({ group, onPress }) => {
+const GroupCard = React.memo(({ group, onPress }) => {
   const [pressed, setPressed] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -56,7 +55,7 @@ const GroupCard = ({ group, onPress }) => {
   return (
     <TouchableOpacity
       style={[styles.groupCard, pressed && styles.cardPressed]}
-      onPress={() => onPress(group.group_id)}
+      onPress={() => onPress(group.id || group.group_id)}
       onPressIn={() => setPressed(true)}
       onPressOut={() => setPressed(false)}
       activeOpacity={1}
@@ -87,7 +86,9 @@ const GroupCard = ({ group, onPress }) => {
       </Text>
     </TouchableOpacity>
   );
-};
+});
+
+GroupCard.displayName = 'GroupCard';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Error Card Component
@@ -218,6 +219,9 @@ const Groups = () => {
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   
+  // Stable key for FlatList to prevent numColumns error
+  const flatListKey = 'groups-list-2-columns';
+  
   // Load groups from backend
   const loadGroups = async (page = 1, append = false, search = searchQuery) => {
     try {
@@ -340,7 +344,7 @@ const Groups = () => {
       <LoadMoreButton
         onPress={loadMoreGroups}
         isLoading={loadingMore}
-        hasMore={nextPage !== null}
+        hasMore={nextPage !== null && nextPage !== false}
       />
     );
   };
@@ -358,9 +362,10 @@ const Groups = () => {
   if (loading && !refreshing) {
     return (
       <FlatList
+        key="skeleton-list"
         data={[1, 2, 3, 4, 5, 6]}
         renderItem={() => <GroupCardSkeleton />}
-        keyExtractor={(item) => item.toString()}
+        keyExtractor={(item) => `skeleton-${item}`}
         numColumns={2}
         columnWrapperStyle={styles.gridRow}
         contentContainerStyle={styles.flatListContent}
@@ -374,6 +379,7 @@ const Groups = () => {
   if (hasError && !loading && groups.length === 0) {
     return (
       <FlatList
+        key="error-list"
         data={[]}
         renderItem={() => null}
         ListHeaderComponent={renderHeader}
@@ -389,9 +395,10 @@ const Groups = () => {
   // Success state
   return (
     <FlatList
+      key={flatListKey}
       data={groups}
       renderItem={({ item }) => <GroupCard group={item} onPress={handleGroupPress} />}
-      keyExtractor={(item) => item.group_id?.toString() || Math.random().toString()}
+      keyExtractor={(item) => item.id?.toString() || item.group_id?.toString() || Math.random().toString()}
       numColumns={2}
       columnWrapperStyle={styles.gridRow}
       contentContainerStyle={styles.flatListContent}
@@ -404,6 +411,9 @@ const Groups = () => {
       }
       onEndReached={loadMoreGroups}
       onEndReachedThreshold={0.3}
+      removeClippedSubviews={true}
+      maxToRenderPerBatch={10}
+      windowSize={5}
     />
   );
 };
